@@ -1,4 +1,9 @@
 .streamlit/secrets.toml
+DATABASE_SCHEMA.md
+PASSWORDLESS_SETUP.md
+fix_rls_recursion.sql
+migrate_to_quiz_structure.sql
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

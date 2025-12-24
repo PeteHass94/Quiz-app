@@ -66,7 +66,8 @@ def set_page_config():
 
 def add_page_selector():
     #st.image("data/ressources/img/TwelveEdu.png")
-    st.page_link("pages/Admin.py", label="Admin Login")
+    st.page_link("pages/01_Admin.py", label="Admin Login")
+    st.page_link("pages/02_Dashboard.py", label="Dashboard")
     # st.page_link("pages/test.py", label="Admin test")
     # st.page_link("pages/scrapping.py", label="Web Scrapping")
     # st.page_link("pages/add_seasons.py", label="Add Seasons")
