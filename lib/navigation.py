@@ -18,6 +18,8 @@ def render_sidebar_navigation():
     prof = get_profile_and_role(user.id)
     role = prof.get('role', 'user')
     
+    st.sidebar.image("theme/Logo/quiznight.jpg", use_container_width=True)
+
     # User info in sidebar
     st.sidebar.markdown(f"### Welcome, {prof['full_name']}!")
     st.sidebar.markdown(f"**Role:** `{role}`")
@@ -49,6 +51,8 @@ def render_admin_navigation():
     st.sidebar.page_link("pages/05_Quiz_History.py", label="Quiz History", icon="📚")
     st.sidebar.page_link("pages/06_My_Rank.py", label="My Rank", icon="🏆")
     st.sidebar.page_link("pages/07_All_Ranks.py", label="All Ranks", icon="📈")
+    st.sidebar.page_link("pages/08_Submit_Feedback.py", label="Submit Feedback", icon="💬")
+    st.sidebar.page_link("pages/09_Manage_Feedback.py", label="Manage Feedback", icon="📋")
 
 
 def render_user_navigation():
@@ -59,4 +63,5 @@ def render_user_navigation():
     st.sidebar.page_link("pages/04_Take_Quiz.py", label="Take Quiz", icon="📝")
     st.sidebar.page_link("pages/05_Quiz_History.py", label="Quiz History", icon="📚")
     st.sidebar.page_link("pages/06_My_Rank.py", label="My Rank", icon="🏆")
+    st.sidebar.page_link("pages/08_Submit_Feedback.py", label="Submit Feedback", icon="💬")
 

@@ -26,7 +26,7 @@ if not user:
     # Show login interface - unified login/signup
     st.title("🧠 Quiz App")
     st.subheader("Log in or Sign up")
-    st.info("📧 Just enter your email. If it's new, we'll ask for your name.")
+    st.info("📧 Just enter your email. If it's new, click Continue and we'll ask for your name.")
     
     email = st.text_input("Email", key="li_email")
     
@@ -80,7 +80,7 @@ else:
     
     # Show quick links
     st.subheader("Quick Links")
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.page_link("pages/04_Take_Quiz.py", label="Take Quiz", icon="📝")
@@ -88,11 +88,13 @@ else:
         st.page_link("pages/05_Quiz_History.py", label="Quiz History", icon="📚")
     with col3:
         st.page_link("pages/06_My_Rank.py", label="My Rank", icon="🏆")
+    with col4:
+        st.page_link("pages/08_Submit_Feedback.py", label="Submit Feedback", icon="💬")
     
     if prof.get('role') == 'admin':
         st.divider()
         st.subheader("Admin Links")
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
             st.page_link("pages/01_Dashboard.py", label="Dashboard", icon="📊")
         with col2:
@@ -101,3 +103,5 @@ else:
             st.page_link("pages/03_Create_Quiz.py", label="Create Quiz", icon="➕")
         with col4:
             st.page_link("pages/07_All_Ranks.py", label="All Ranks", icon="📈")
+        with col5:
+            st.page_link("pages/09_Manage_Feedback.py", label="Manage Feedback", icon="📋")
