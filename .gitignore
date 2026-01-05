@@ -1,8 +1,6 @@
 .streamlit/secrets.toml
 DATABASE_SCHEMA.md
 PASSWORDLESS_SETUP.md
-fix_rls_recursion.sql
-migrate_to_quiz_structure.sql
 
 
 # Byte-compiled / optimized / DLL files
@@ -21,7 +19,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/
 lib64/
 parts/
 sdist/
