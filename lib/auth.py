@@ -5,7 +5,7 @@ import secrets
 import string
 from datetime import datetime
 
-APP_URL = os.getenv("APP_URL", "http://localhost:8501")  # set this in your secrets for prod
+# APP_URL = os.getenv("APP_URL", "http://localhost:8501")  # set this in your secrets for prod
 
 def generate_password(length=32):
     """Generate a random password for internal use."""
@@ -82,13 +82,18 @@ def sign_up(email: str, full_name: str):
             pass
     
     # Create session immediately
-    st.session_state["sb_session"] = {
+    sess = {
         "user_id": user.id,
         "email": email,
         "role": "user",
         "full_name": full_name,
         "bypass_auth": True
     }
+    st.session_state["sb_session"] = sess
+    
+    # Store in query params for persistence across refreshes
+    st.query_params["user_id"] = user.id
+    st.query_params["email"] = email
     
     return user
 
@@ -135,7 +140,7 @@ def sign_in(email: str, admin_password: str = None, full_name: str = None):
                 raise ValueError("Admin account detected. Please enter the admin password.")
         
         # Create session
-        st.session_state["sb_session"] = {
+        sess = {
             "user_id": profile["id"],
             "email": profile["email"],
             "role": profile.get("role", "user"),
@@ -143,6 +148,11 @@ def sign_in(email: str, admin_password: str = None, full_name: str = None):
             "bypass_auth": True,
             "login_time": datetime.utcnow().isoformat()
         }
+        st.session_state["sb_session"] = sess
+        
+        # Store in query params for persistence across refreshes
+        st.query_params["user_id"] = profile["id"]
+        st.query_params["email"] = profile["email"]
         
         class MockUser:
             def __init__(self, user_id, email):
@@ -167,7 +177,7 @@ def sign_in(email: str, admin_password: str = None, full_name: str = None):
                         ADMIN_PASSWORD = "quizapp"
                         if not admin_password or admin_password != ADMIN_PASSWORD:
                             raise ValueError("Admin account detected. Please enter the admin password.")
-                    st.session_state["sb_session"] = {
+                    sess = {
                         "user_id": profile["id"],
                         "email": profile["email"],
                         "role": profile.get("role", "user"),
@@ -175,6 +185,10 @@ def sign_in(email: str, admin_password: str = None, full_name: str = None):
                         "bypass_auth": True,
                         "login_time": datetime.utcnow().isoformat()
                     }
+                    st.session_state["sb_session"] = sess
+                    # Store in query params for persistence
+                    st.query_params["user_id"] = profile["id"]
+                    st.query_params["email"] = profile["email"]
                     class MockUser:
                         def __init__(self, user_id, email):
                             self.id = user_id
@@ -212,6 +226,35 @@ def sign_in_with_admin(email: str, admin_password: str = None):
 def get_current_user():
     """Get current user, supporting both Supabase Auth and session-based auth."""
     sess = st.session_state.get("sb_session")
+    
+    # If no session in state, try to restore from query params (for persistence across refreshes)
+    if not sess:
+        # Check query params for session restoration
+        query_params = st.query_params
+        if "user_id" in query_params and "email" in query_params:
+            user_id = query_params["user_id"]
+            email = query_params["email"]
+            
+            # Verify user exists and restore session
+            supabase = get_client()
+            try:
+                profile_result = supabase.table("profiles").select("id, email, role, full_name, approved").eq("id", user_id).eq("email", email).execute()
+                if profile_result.data:
+                    profile = profile_result.data[0]
+                    if profile.get("approved", False):
+                        # Restore session
+                        sess = {
+                            "user_id": profile["id"],
+                            "email": profile["email"],
+                            "role": profile.get("role", "user"),
+                            "full_name": profile.get("full_name", ""),
+                            "bypass_auth": True,
+                            "login_time": datetime.utcnow().isoformat()
+                        }
+                        st.session_state["sb_session"] = sess
+            except:
+                pass
+    
     if not sess:
         return None, None
     
@@ -234,6 +277,8 @@ def get_current_user():
         error_msg = str(e)
         if "JWT" in error_msg or "expired" in error_msg.lower() or "PGRST303" in error_msg:
             st.session_state.pop("sb_session", None)
+            # Clear query params too
+            st.query_params.clear()
             return None, None
         # For other errors, just return None
         return None, None
@@ -289,6 +334,8 @@ def sign_out():
         except:
             pass
     st.session_state.pop("sb_session", None)
+    # Clear query params on sign out
+    st.query_params.clear()
 
 def require_role(roles=("admin",)):
     """Call at top of admin pages to block unauthorized access."""
@@ -368,16 +415,16 @@ def add_user_directly(email: str, full_name: str, role: str = "user"):
 
 # Note: get_client is imported from lib.supabase_client
 
-def request_password_reset(email: str):
-    """
-    Sends a password reset email. The link will redirect back to your app.
-    """
-    supabase = get_client()
-    # IMPORTANT: Add APP_URL to Supabase Auth > URL Configuration > Redirect URLs
-    supabase.auth.reset_password_for_email(
-        email,
-        options={"redirect_to": f"{APP_URL}?type=recovery"}
-    )
+# def request_password_reset(email: str):
+#     """
+#     Sends a password reset email. The link will redirect back to your app.
+#     """
+#     supabase = get_client()
+#     # IMPORTANT: Add APP_URL to Supabase Auth > URL Configuration > Redirect URLs
+#     supabase.auth.reset_password_for_email(
+#         email,
+#         options={"redirect_to": f"{APP_URL}?type=recovery"}
+#     )
 
 def set_recovery_session(access_token: str, refresh_token: str):
     """

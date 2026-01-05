@@ -41,8 +41,8 @@ if not user:
     if is_admin_email:
         st.warning("🔐 Admin account detected. Please enter the admin password.")
         admin_password = st.text_input("Admin Password", type="password", key="admin_pwd")
-    else:
-        st.info("📧 Enter your email to continue. New users will be asked for their name.")
+    # else:
+    #     st.info("📧 Enter your email to continue. New users will be asked for their name.")
     
     # Check if this is a new email (will be set if login fails with NEW_EMAIL error)
     if "new_email_prompt" in st.session_state and st.session_state["new_email_prompt"]:
