@@ -412,6 +412,32 @@ def add_user_directly(email: str, full_name: str, role: str = "user"):
         raise ValueError(f"Failed to create profile: {e}")
 
 
+def delete_user(user_id: str):
+    """Delete a user and all their data (admin only). Deletes user_answers and profile."""
+    supabase = get_client()
+    try:
+        # First, delete all user answers
+        supabase.table("user_answers").delete().eq("user_id", user_id).execute()
+        
+        # Delete feedback submissions
+        try:
+            supabase.table("feedback").delete().eq("user_id", user_id).execute()
+        except:
+            pass  # Feedback table might not exist yet
+        
+        # Delete the profile
+        supabase.table("profiles").delete().eq("id", user_id).execute()
+        
+        # Note: We don't delete the auth user here as that requires admin API access
+        # The auth user will remain but won't be able to log in without a profile
+        # To fully delete, use Supabase dashboard or admin API
+        
+        return True
+    except Exception as e:
+        st.error(f"Error deleting user: {e}")
+        return False
+
+
 
 # Note: get_client is imported from lib.supabase_client
 

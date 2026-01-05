@@ -2,7 +2,7 @@
 Manage Users Page - Admin only
 """
 import streamlit as st
-from lib.auth import get_current_user, get_profile_and_role, get_pending_users, approve_user, add_user_directly
+from lib.auth import get_current_user, get_profile_and_role, get_pending_users, approve_user, add_user_directly, delete_user
 from lib.supabase_client import get_client
 
 st.set_page_config(page_title="Manage Users", page_icon="👥", layout="wide")
@@ -62,7 +62,7 @@ pending_users = get_pending_users()
 if pending_users:
     for u in pending_users:
         with st.container():
-            col1, col2, col3 = st.columns([3, 1, 1])
+            col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
             with col1:
                 st.write(f"**{u.get('full_name', 'N/A')}**")
                 st.write(f"Email: {u.get('email', 'N/A')}")
@@ -73,6 +73,20 @@ if pending_users:
                     if approve_user(u['id']):
                         st.success("User approved!")
                         st.rerun()
+            with col4:
+                if st.button("🗑️ Delete", key=f"delete_pending_{u['id']}", type="secondary"):
+                    # Confirmation
+                    if f"confirm_delete_{u['id']}" not in st.session_state:
+                        st.session_state[f"confirm_delete_{u['id']}"] = True
+                        st.warning(f"⚠️ Click Delete again to confirm deletion of {u.get('full_name', 'N/A')}")
+                        st.rerun()
+                    else:
+                        if delete_user(u['id']):
+                            st.success(f"✅ User {u.get('full_name', 'N/A')} and all their data deleted!")
+                            st.session_state.pop(f"confirm_delete_{u['id']}", None)
+                            st.rerun()
+                        else:
+                            st.session_state.pop(f"confirm_delete_{u['id']}", None)
             st.divider()
 else:
     st.info("No users pending approval.")
@@ -87,19 +101,43 @@ try:
         "id, email, full_name, role, approved, group, created_at"
     ).order("created_at", desc=True).execute()
     if all_users.data:
-        import pandas as pd
-        users_data = []
+        # Display users with delete buttons
+        st.write(f"**Total Users:** {len(all_users.data)}")
+        
         for u in all_users.data:
-            users_data.append({
-                "Name": u.get('full_name', 'N/A'),
-                "Email": u.get('email', 'N/A'),
-                "Group": u.get('group', 'uncategorised'),
-                "Role": u.get('role', 'user'),
-                "Status": "✅ Approved" if u.get('approved') else "⏳ Pending",
-                "Created": u.get('created_at', '')[:10] if u.get('created_at') else 'N/A'
-            })
-        df = pd.DataFrame(users_data)
-        st.dataframe(df, use_container_width=True, hide_index=True)
+            with st.container():
+                col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
+                with col1:
+                    st.write(f"**{u.get('full_name', 'N/A')}**")
+                    st.caption(f"Email: {u.get('email', 'N/A')}")
+                with col2:
+                    st.write(f"**Group:** {u.get('group', 'uncategorised')}")
+                with col3:
+                    st.write(f"**Role:** {u.get('role', 'user')}")
+                with col4:
+                    status = "✅ Approved" if u.get('approved') else "⏳ Pending"
+                    st.write(f"**Status:** {status}")
+                with col5:
+                    # Don't allow deleting yourself
+                    if u['id'] == user.id:
+                        st.caption("(You)")
+                    else:
+                        delete_key = f"delete_user_{u['id']}"
+                        if st.button("🗑️ Delete", key=delete_key, type="secondary", use_container_width=True):
+                            # Confirmation
+                            confirm_key = f"confirm_delete_{u['id']}"
+                            if confirm_key not in st.session_state:
+                                st.session_state[confirm_key] = True
+                                st.warning(f"⚠️ Click Delete again to confirm deletion of {u.get('full_name', 'N/A')} and all their data (answers, feedback, etc.)")
+                                st.rerun()
+                            else:
+                                if delete_user(u['id']):
+                                    st.success(f"✅ User {u.get('full_name', 'N/A')} and all their data deleted!")
+                                    st.session_state.pop(confirm_key, None)
+                                    st.rerun()
+                                else:
+                                    st.session_state.pop(confirm_key, None)
+                st.divider()
         
         # Group management section
         st.divider()
