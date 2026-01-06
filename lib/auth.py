@@ -101,22 +101,22 @@ def sign_in(email: str, admin_password: str = None, full_name: str = None):
     """Sign in with just email. If new email, requires full_name. Admins need password 'quizapp'."""
     # Clear any existing expired session first
     if "sb_session" in st.session_state:
-        try:
-            old_sess = st.session_state.get("sb_session", {})
-            if not old_sess.get("bypass_auth"):
-                try:
-                    supabase = get_client()
-                    supabase.auth.sign_out()
-                except:
-                    pass
-        except:
-            pass
         st.session_state.pop("sb_session", None)
     
+    # Clear query params to start fresh
+    if "user_id" in st.query_params or "email" in st.query_params:
+        st.query_params.clear()
+    
+    # Get a fresh client without any auth session
     supabase = get_client()
+    # Ensure no auth session is set (clear any stale tokens)
+    try:
+        supabase.auth.sign_out()
+    except:
+        pass  # Ignore errors if no session exists
     
     try:
-        # Check if profile exists
+        # Check if profile exists (this should work with anon key, no auth needed)
         profile_result = supabase.table("profiles").select("id, email, approved, role, full_name").eq("email", email).execute()
         
         if not profile_result.data:
@@ -164,10 +164,28 @@ def sign_in(email: str, admin_password: str = None, full_name: str = None):
         error_msg = str(e)
         if error_msg == "NEW_EMAIL":
             raise  # Re-raise to handle in UI
+        
+        # Handle JWT expiration - retry with fresh client
         if "JWT" in error_msg or "expired" in error_msg.lower() or "PGRST303" in error_msg:
             st.session_state.pop("sb_session", None)
+            # Clear query params
+            st.query_params.clear()
+            
+            # Retry with completely fresh client
             try:
-                supabase = get_client()
+                # Create a fresh client directly (bypassing cache)
+                from supabase import create_client
+                url = st.secrets["supabase"]["url"]
+                key = st.secrets["supabase"]["anon_key"]
+                supabase = create_client(url, key)
+                
+                # Explicitly clear any auth
+                try:
+                    supabase.auth.sign_out()
+                except:
+                    pass
+                
+                # Retry the profile lookup
                 profile_result = supabase.table("profiles").select("id, email, approved, role, full_name").eq("email", email).execute()
                 if profile_result.data:
                     profile = profile_result.data[0]
@@ -194,8 +212,11 @@ def sign_in(email: str, admin_password: str = None, full_name: str = None):
                             self.id = user_id
                             self.email = email
                     return MockUser(profile["id"], profile["email"])
-            except:
-                pass
+            except Exception as retry_error:
+                # If retry also fails, re-raise the original error
+                raise e
+        
+        # For other errors, re-raise
         raise
 
 def check_if_admin_email(email: str):
@@ -235,8 +256,14 @@ def get_current_user():
             user_id = query_params["user_id"]
             email = query_params["email"]
             
-            # Verify user exists and restore session
+            # Verify user exists and restore session (use fresh client without auth)
             supabase = get_client()
+            # Clear any stale auth session
+            try:
+                supabase.auth.sign_out()
+            except:
+                pass
+            
             try:
                 profile_result = supabase.table("profiles").select("id, email, role, full_name, approved").eq("id", user_id).eq("email", email).execute()
                 if profile_result.data:
@@ -252,7 +279,11 @@ def get_current_user():
                             "login_time": datetime.utcnow().isoformat()
                         }
                         st.session_state["sb_session"] = sess
-            except:
+            except Exception as e:
+                # If restoration fails, clear query params
+                error_msg = str(e)
+                if "JWT" in error_msg or "expired" in error_msg.lower() or "PGRST303" in error_msg:
+                    st.query_params.clear()
                 pass
     
     if not sess:
@@ -413,24 +444,66 @@ def add_user_directly(email: str, full_name: str, role: str = "user"):
 
 
 def delete_user(user_id: str):
-    """Delete a user and all their data (admin only). Deletes user_answers and profile."""
+    """Delete a user and all their data (admin only). 
+    Deletes in this order: user_answers, feedback, profile, and auth user.
+    Note: To fully delete from auth, add service_role_key to secrets.toml under [supabase]"""
     supabase = get_client()
     try:
-        # First, delete all user answers
-        supabase.table("user_answers").delete().eq("user_id", user_id).execute()
+        # 1. Delete all user answers
+        try:
+            supabase.table("user_answers").delete().eq("user_id", user_id).execute()
+        except Exception as e:
+            st.warning(f"Warning deleting user_answers: {e}")
         
-        # Delete feedback submissions
+        # 2. Delete feedback submissions
         try:
             supabase.table("feedback").delete().eq("user_id", user_id).execute()
+        except Exception as e:
+            # Feedback table might not exist yet, or RLS might prevent deletion
+            pass
+        
+        # 3. Get profile email before deletion (for potential auth lookup)
+        profile_email = None
+        try:
+            profile_result = supabase.table("profiles").select("email").eq("id", user_id).single().execute()
+            if profile_result.data:
+                profile_email = profile_result.data.get("email")
         except:
-            pass  # Feedback table might not exist yet
+            pass  # Profile might not exist
         
-        # Delete the profile
-        supabase.table("profiles").delete().eq("id", user_id).execute()
+        # 4. Delete the profile
+        try:
+            supabase.table("profiles").delete().eq("id", user_id).execute()
+        except Exception as e:
+            st.error(f"Error deleting profile: {e}")
+            return False
         
-        # Note: We don't delete the auth user here as that requires admin API access
-        # The auth user will remain but won't be able to log in without a profile
-        # To fully delete, use Supabase dashboard or admin API
+        # 5. Delete from Supabase auth (requires service role key)
+        # The user_id should match auth.users.id (profile.id = auth.users.id in Supabase)
+        auth_deleted = False
+        try:
+            service_role_key = st.secrets.get("supabase", {}).get("service_role_key")
+            if service_role_key:
+                # Create admin client with service role key
+                from supabase import create_client
+                admin_supabase = create_client(
+                    st.secrets["supabase"]["url"],
+                    service_role_key
+                )
+                # Delete auth user using admin API
+                # user_id should be the UUID from auth.users table
+                admin_supabase.auth.admin.delete_user(user_id)
+                auth_deleted = True
+            else:
+                # No service_role_key - user data is deleted but auth user remains
+                # They can't log in without a profile anyway
+                pass
+        except Exception as e:
+            # Auth deletion failed - user data is deleted, but auth user remains
+            error_msg = str(e)
+            if not auth_deleted and service_role_key:
+                # Only show warning if we had the key and it still failed
+                st.warning(f"⚠️ User data deleted, but auth user deletion failed: {e}")
         
         return True
     except Exception as e:
