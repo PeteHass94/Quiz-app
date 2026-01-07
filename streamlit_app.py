@@ -25,7 +25,7 @@ user, sess = get_current_user()
 if not user:
     # Show login interface - unified login/signup
     st.title("🧠 Quiz App")
-    st.subheader("Log in or Sign up")
+    st.subheader("Log in or Sign up - No password required, just enter your email and I will remember you.")
     
     email = st.text_input("Email", key="li_email", value=st.session_state.get("login_email", ""))
     

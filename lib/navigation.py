@@ -41,7 +41,7 @@ def render_sidebar_navigation():
 
 def render_admin_navigation():
     """Render navigation menu for admin users using page links."""
-    st.sidebar.markdown("### 📋 Navigation")
+    st.sidebar.markdown("### Navigation")
     
     # Use page links for navigation
     st.sidebar.page_link("pages/01_Dashboard.py", label="Dashboard", icon="📊")
@@ -57,7 +57,7 @@ def render_admin_navigation():
 
 def render_user_navigation():
     """Render navigation menu for regular users using page links."""
-    st.sidebar.markdown("### 📋 Navigation")
+    st.sidebar.markdown("### Navigation")
     
     # Use page links for navigation
     st.sidebar.page_link("pages/04_Take_Quiz.py", label="Take Quiz", icon="📝")
