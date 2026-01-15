@@ -88,7 +88,7 @@ with tabs[0]:
             is_user = row["Name"] == prof.get('full_name', '')
             styles = [''] * len(row)
             if is_user:
-                styles = ['background-color: #CFB53B; font-weight: bold'] * len(row)
+                styles = ['background-color: #9F8000; font-weight: bold'] * len(row)
             return styles
         
         styled_df = df.style.apply(highlight_user_row, axis=1)
@@ -131,7 +131,7 @@ for idx, quiz in enumerate(all_quizzes, 1):
                 is_user = row["Name"] == prof.get('full_name', '')
                 styles = [''] * len(row)
                 if is_user:
-                    styles = ['background-color: #ffd700; font-weight: bold'] * len(row)
+                    styles = ['background-color: #9F8000; font-weight: bold'] * len(row)
                 return styles
             
             styled_df = df.style.apply(highlight_user_row, axis=1)

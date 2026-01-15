@@ -4,6 +4,7 @@ Take Quiz Page - Simplified, one question at a time with button answers
 import streamlit as st
 from lib.auth import get_current_user, get_profile_and_role
 from lib.quiz import get_active_quizzes, get_quiz_structure, submit_answer, get_user_answers, DEFAULT_HINT, DEFAULT_EXPLANATION
+import time
 
 st.set_page_config(page_title="Take Quiz", page_icon="📝", layout="wide")
 
@@ -272,12 +273,20 @@ else:
             
             # Show hint if available and not answered yet
             if not previous_answer and current_question.get('hint') and current_question.get('hint') != DEFAULT_HINT:
+                def stream_data(): 
+                    yield "`"
+                    for word in current_question["hint"].split(" "):
+                        yield word + " "
+                        time.sleep(0.02)
+                    yield "`"
+
                 hint_col1, hint_col2 = st.columns([0.3, 0.7])
                 with hint_col1:
                     show_hint = st.button("💡 Hint (click to reveal)", key=f"hint_btn_{question_id}", use_container_width=True)
                 with hint_col2:
                     if show_hint:
-                        st.markdown(f'<span style="display:inline-block;vertical-align:bottom; padding:0.25em 0.75em;border-radius:8px; font-size:1.2em;">`{current_question["hint"]}`</span>', unsafe_allow_html=True)
+                        st.write_stream(stream_data)
+                        #st.markdown(f'<span style="display:inline-block;vertical-align:bottom; padding:0.25em 0.75em;border-radius:8px; font-size:1.2em;">`{current_question["hint"]}`</span>', unsafe_allow_html=True)
             
             # Answer buttons in 2 columns
             st.write("**Select your answer:**")

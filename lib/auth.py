@@ -14,6 +14,9 @@ def generate_password(length=32):
 
 def sign_up(email: str, full_name: str):
     """Sign up with just email and name. Password is auto-generated. Auto-approved as user."""
+    # Normalize email to lowercase
+    email = email.lower().strip()
+    
     supabase = get_client()
     
     # Check if user already exists
@@ -99,6 +102,9 @@ def sign_up(email: str, full_name: str):
 
 def sign_in(email: str, admin_password: str = None, full_name: str = None):
     """Sign in with just email. If new email, requires full_name. Admins need password 'quizapp'."""
+    # Normalize email to lowercase
+    email = email.lower().strip()
+    
     # Clear any existing expired session first
     if "sb_session" in st.session_state:
         st.session_state.pop("sb_session", None)
@@ -221,6 +227,9 @@ def sign_in(email: str, admin_password: str = None, full_name: str = None):
 
 def check_if_admin_email(email: str):
     """Check if an email belongs to an admin user."""
+    # Normalize email to lowercase
+    email = email.lower().strip()
+    
     supabase = get_client()
     try:
         profile_result = supabase.table("profiles").select("role").eq("email", email).execute()
@@ -232,6 +241,9 @@ def check_if_admin_email(email: str):
 
 def check_if_profile_exists(email: str):
     """Check if a profile with the given email exists."""
+    # Normalize email to lowercase
+    email = email.lower().strip()
+    
     supabase = get_client()
     try:
         profile_result = supabase.table("profiles").select("id").eq("email", email).execute()
@@ -254,7 +266,7 @@ def get_current_user():
         query_params = st.query_params
         if "user_id" in query_params and "email" in query_params:
             user_id = query_params["user_id"]
-            email = query_params["email"]
+            email = query_params["email"].lower().strip()  # Normalize email to lowercase
             
             # Verify user exists and restore session (use fresh client without auth)
             supabase = get_client()
@@ -403,6 +415,9 @@ def approve_user(user_id: str):
 
 def add_user_directly(email: str, full_name: str, role: str = "user"):
     """Admin can add a user directly (creates both auth user and profile)."""
+    # Normalize email to lowercase
+    email = email.lower().strip()
+    
     supabase = get_client()
     
     # Check if user already exists
